@@ -61,11 +61,12 @@ def main():
             tx = get_latest_eth_tx(eth)
             if tx and tx["hash"] != last_map.get(eth):
                 link = f"https://etherscan.io/tx/{tx['hash']}"
-                send_message(f"🔔 *ETH {tx['from']} → {tx['to']}*")
+                send_message(f"""🔔 *ETH {tx['from']} → {tx['to']}*
 💰 {int(tx['value'])/1e18:.6f} ETH
-🔗 [TX Link]({link})")
+🔗 [TX Link]({link})""")
                 last_map[eth] = tx["hash"]
                 updated = True
+
         for tron in TRON_ADDRESSES:
             tron = tron.strip()
             tx = get_latest_trc20_tx(tron)
@@ -74,14 +75,16 @@ def main():
                 symbol = tx["token_info"]["symbol"]
                 txid = tx["transaction_id"]
                 link = f"https://tronscan.org/#/transaction/{txid}"
-                send_message(f"🔔 *TRON {tx['from']} → {tx['to']}*
+                send_message(f"""🔔 *TRON {tx['from']} → {tx['to']}*
 💰 {val} {symbol}
-🔗 [TX Link]({link})")
+🔗 [TX Link]({link})""")
                 last_map[tron] = txid
                 updated = True
+
         if updated:
             save_last_txids(last_map)
         time.sleep(30)
+
 
 if __name__ == "__main__":
     main()
