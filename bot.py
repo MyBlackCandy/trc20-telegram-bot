@@ -61,7 +61,7 @@ def main():
             tx = get_latest_eth_tx(eth)
             if tx and tx["hash"] != last_map.get(eth):
                 link = f"https://etherscan.io/tx/{tx['hash']}"
-                send_message(f"🔔 *ETH {tx['from']} → {tx['to']}*
+                send_message(f"🔔 *ETH {tx['from']} → {tx['to']}*")
 💰 {int(tx['value'])/1e18:.6f} ETH
 🔗 [TX Link]({link})")
                 last_map[eth] = tx["hash"]
