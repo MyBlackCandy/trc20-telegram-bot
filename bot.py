@@ -50,41 +50,47 @@ def load_last_txids():
 def save_last_txids(txid_map):
     with open(LAST_TX_FILE, "w") as f:
         for addr, txid in txid_map.items():
-            f.write(f"{addr}={txid}")
+            f.write(f"{addr}={txid}\n")
 
 def main():
     last_map = load_last_txids()
     while True:
         updated = False
+
+        # ETH
         for eth in ETH_ADDRESSES:
             eth = eth.strip()
             tx = get_latest_eth_tx(eth)
             if tx and tx["hash"] != last_map.get(eth):
-                link = f"https://etherscan.io/tx/{tx['hash']}"
-                send_message(f"""🔔 *ETH {tx['from']} → {tx['to']}*
-💰 {int(tx['value'])/1e18:.6f} ETH
-🔗 [TX Link]({link})""")
+                direction = "入" if tx["to"].lower() == eth.lower() else "出"
+                msg = f"""🪙 *ETH {direction}*
+👤 จาก: `{tx['from']}`
+👥 ถึง: `{tx['to']}`
+💰 {int(tx['value']) / 1e18:.6f} ETH"""
+                send_message(msg)
                 last_map[eth] = tx["hash"]
                 updated = True
 
+        # TRON
         for tron in TRON_ADDRESSES:
             tron = tron.strip()
             tx = get_latest_trc20_tx(tron)
             if tx and tx["transaction_id"] != last_map.get(tron):
-                val = int(tx["value"]) / (10**int(tx["token_info"]["decimals"]))
+                val = int(tx["value"]) / (10 ** int(tx["token_info"]["decimals"]))
                 symbol = tx["token_info"]["symbol"]
-                txid = tx["transaction_id"]
-                link = f"https://tronscan.org/#/transaction/{txid}"
-                send_message(f"""🔔 *TRON {tx['from']} → {tx['to']}*
-💰 {val} {symbol}
-🔗 [TX Link]({link})""")
-                last_map[tron] = txid
+                direction = "入" if tx["to"] == tron else "出"
+                msg = f"""🪙 *TRON {direction}*
+👤 จาก: `{tx['from']}`
+👥 ถึง: `{tx['to']}`
+💰 {val:.6f} {symbol}"""
+                send_message(msg)
+                last_map[tron] = tx["transaction_id"]
                 updated = True
 
         if updated:
             save_last_txids(last_map)
-        time.sleep(30)
 
+        time.sleep(30)
 
 if __name__ == "__main__":
     main()
