@@ -50,8 +50,7 @@ def load_last_txids():
 def save_last_txids(txid_map):
     with open(LAST_TX_FILE, "w") as f:
         for addr, txid in txid_map.items():
-            f.write(f"{addr}={txid}
-")
+            f.write(f"{addr}={txid}")
 
 def main():
     last_map = load_last_txids()
