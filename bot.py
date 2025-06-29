@@ -64,8 +64,8 @@ def main():
             if tx and tx["hash"] != last_map.get(eth):
                 direction = "入" if tx["to"].lower() == eth.lower() else "出"
                 msg = f"""🪙 *ETH {direction}*
-👤 จาก: `{tx['from']}`
-👥 ถึง: `{tx['to']}`
+👤 从: `{tx['from']}`
+👥 到: `{tx['to']}`
 💰 {int(tx['value']) / 1e18:.6f} ETH"""
                 send_message(msg)
                 last_map[eth] = tx["hash"]
@@ -79,9 +79,9 @@ def main():
                 val = int(tx["value"]) / (10 ** int(tx["token_info"]["decimals"]))
                 symbol = tx["token_info"]["symbol"]
                 direction = "入" if tx["to"] == tron else "出"
-                msg = f"""🪙 *TRON {direction}*
-👤 จาก: `{tx['from']}`
-👥 ถึง: `{tx['to']}`
+                msg = f"""🪙 *TRC-20 {direction}*
+👤 从: `{tx['from']}`
+👥 到: `{tx['to']}`
 💰 {val:.6f} {symbol}"""
                 send_message(msg)
                 last_map[tron] = tx["transaction_id"]
