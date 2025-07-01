@@ -7,6 +7,7 @@ TG_CHAT_ID = os.getenv("CHAT_ID")
 ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY")
 ETH_ADDRESSES = os.getenv("ETH_ADDRESS", "").split(",")
 TRON_ADDRESSES = os.getenv("TRON_ADDRESS", "").split(",")
+BTC_ADDRESSES = os.getenv("BTC_ADDRESS", "").split(",")
 
 LAST_TX_FILE = "last_seen.txt"
 
@@ -18,12 +19,18 @@ def send_message(text):
     except Exception as e:
         print("Telegram ERROR:", e)
 
+def get_price(symbol):
+    try:
+        r = requests.get(f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}").json()
+        return float(r["price"])
+    except:
+        return 0
+
 def get_latest_eth_tx(address):
     try:
         url = f"https://api.etherscan.io/api?module=account&action=txlist&address={address}&sort=desc&apikey={ETHERSCAN_API_KEY}"
         res = requests.get(url).json()
-        txs = res.get("result", [])
-        return txs[0] if txs else None
+        return res.get("result", [])[0] if res.get("result") else None
     except Exception as e:
         print("ETH API ERROR:", e)
     return None
@@ -32,10 +39,18 @@ def get_latest_tron_tx(address):
     try:
         url = f"https://api.trongrid.io/v1/accounts/{address}/transactions/trc20?limit=1"
         res = requests.get(url, headers={"accept": "application/json"}).json()
-        txs = res.get("data", [])
-        return txs[0] if txs else None
+        return res.get("data", [])[0] if res.get("data") else None
     except Exception as e:
         print("TRON API ERROR:", e)
+    return None
+
+def get_latest_btc_tx(address):
+    try:
+        url = f"https://blockchain.info/rawaddr/{address}"
+        res = requests.get(url).json()
+        return res.get("txs", [])[0] if res.get("txs") else None
+    except Exception as e:
+        print("BTC API ERROR:", e)
     return None
 
 def load_last_txids():
@@ -53,25 +68,31 @@ def main():
     last_seen = load_last_txids()
     while True:
         updated = False
+        eth_price = get_price("ETHUSDT")
+        btc_price = get_price("BTCUSDT")
 
+        # ETH
         for eth in ETH_ADDRESSES:
             eth = eth.strip()
             tx = get_latest_eth_tx(eth)
-            if isinstance(tx, dict) and tx.get("hash") and tx["hash"] != last_seen.get(eth):
+            if tx and tx.get("hash") and tx["hash"] != last_seen.get(eth):
+                value = int(tx["value"]) / 1e18
+                usd = value * eth_price
                 direction = "入" if tx["to"].lower() == eth.lower() else "出"
                 msg = f"""🟢 *ETH {direction}*
 👤 从: `{tx['from']}`
 👥 到: `{tx['to']}`
-💰 {int(tx['value']) / 1e18:.6f} ETH"""
+💰 {value:.6f} ETH ≈ ${usd:,.2f}"""
                 send_message(msg)
                 last_seen[eth] = tx["hash"]
                 updated = True
 
+        # TRON
         for tron in TRON_ADDRESSES:
             tron = tron.strip()
             tx = get_latest_tron_tx(tron)
-            if isinstance(tx, dict) and tx.get("transaction_id") and tx["transaction_id"] != last_seen.get(tron):
-                val = int(tx["value"]) / (10**int(tx["token_info"]["decimals"]))
+            if tx and tx.get("transaction_id") and tx["transaction_id"] != last_seen.get(tron):
+                val = int(tx["value"]) / (10 ** int(tx["token_info"]["decimals"]))
                 symbol = tx["token_info"]["symbol"]
                 direction = "入" if tx["to"] == tron else "出"
                 msg = f"""🟢 *TRC20 {direction}*
@@ -82,8 +103,26 @@ def main():
                 last_seen[tron] = tx["transaction_id"]
                 updated = True
 
+        # BTC
+        for btc in BTC_ADDRESSES:
+            btc = btc.strip()
+            tx = get_latest_btc_tx(btc)
+            if tx and tx.get("hash") and tx["hash"] != last_seen.get(btc):
+                total = sum(out["value"] for out in tx["out"] if out.get("addr") == btc) / 1e8
+                usd_val = total * btc_price
+                from_addr = tx.get("inputs", [{}])[0].get("prev_out", {}).get("addr", "不明")
+                direction = "入" if any(out.get("addr") == btc for out in tx["out"]) else "出"
+                msg = f"""🟢 *BTC {direction}*
+👤 从: `{from_addr}`
+👥 到: `{btc}`
+💰 {total:.8f} BTC ≈ ${usd_val:,.2f}"""
+                send_message(msg)
+                last_seen[btc] = tx["hash"]
+                updated = True
+
         if updated:
             save_last_txids(last_seen)
+
         time.sleep(30)
 
 if __name__ == "__main__":
